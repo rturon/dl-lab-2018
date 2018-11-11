@@ -3,3 +3,4 @@ Untitled.ipynb
 */data/*
 traincurves.pdf
 */__pycache__
+*.npy
