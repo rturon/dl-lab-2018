@@ -10,7 +10,10 @@ import ConfigSpace as CS
 from hpbandster.core.worker import Worker
 import argparse
 
-from cnn_mnist_solution import mnist
+# from cnn_mnist_solution import mnist
+from cnn_mnist import mnist
+from cnn_mnist import train_and_validate
+from cnn_mnist import test
 
 
 class MyWorker(Worker):

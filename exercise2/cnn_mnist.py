@@ -1,4 +1,4 @@
-from __future__ import print_function
+# from __future__ import print_function
 
 import argparse
 import gzip
@@ -7,6 +7,8 @@ import os
 import pickle
 
 import numpy as np
+import tensorflow as tf
+import tensorflow.layers as layers
 
 
 def one_hot(labels):
@@ -59,9 +61,128 @@ def mnist(datasets_dir='./data'):
     print('... done loading data')
     return train_x, one_hot(train_y), valid_x, one_hot(valid_y), test_x, one_hot(test_y)
 
+class CNN(object):
+
+    def __init__(self, num_filters, kernel_size):
+    # inputs
+        self.inputs = tf.placeholder(tf.float32, shape=[None, 28, 28, 1])
+        # first convolutional layer, default values: strides=1, use_bias=True
+        conv1 = layers.Conv2D(filters=num_filters,
+                              kernel_size=kernel_size,
+                              padding="same",
+                              activation="relu")
+        pooling = layers.MaxPooling2D(pool_size=2, strides=2)
+        conv2 = layers.Conv2D(filters=num_filters,
+                              kernel_size=kernel_size,
+                              padding="same",
+                              activation="relu")
+        # flatten layer before the dense layers
+        flatten = layers.Flatten()
+        # dense layers -> first one with relu?
+        linear1 = layers.Dense(units=128, activation="relu")
+        # second dense layer only computes logits
+        linear2 = layers.Dense(units=10, activation=None)
+
+        # define the graph
+        self.logits = conv1(self.inputs)
+        for layer in [pooling, conv2, pooling, flatten, linear1, linear2]:
+            self.logits = layer(self.logits)
+
+        self.out_soft = tf.nn.softmax(self.logits)
+
+        # intialize the variables
+        init = tf.global_variables_initializer()
+        self.sess = tf.Session()
+        self.sess.run(init)
+
+    def predict(self, x):
+        ''' computes the output of the network for the input X '''
+
+        return self.sess.run(self.out_soft(x))
+
+    def train(self, x_train, y_train, x_valid, y_valid, num_epochs, lr, batch_size):
+        ''' trains the network '''
+
+        # define the loss
+        y_true = tf.placeholder(tf.float32, shape=[None, 10])
+        loss = tf.losses.softmax_cross_entropy(y_true, self.logits)
+
+        # define the optimizer
+        optimizer = tf.train.GradientDescentOptimizer(learning_rate=lr)
+        train = optimizer.minimize(loss)
+
+        # define training loop
+        num_batches = x_train.shape[0] // batch_size
+
+        for i in range(num_epochs):
+            train_loss = 0
+            for b in range(num_batches):
+                x_batch = x_train[b*batch_size:b*batch_size+batch_size]
+                y_batch = y_train[b*batch_size:b*batch_size+batch_size]
+
+                _, loss_value = self.sess.run([train, loss],
+                                              {self.inputs: x_batch,
+                                               y_true: y_batch})
+                train_loss += loss_value
+
+            # get the loss for the whole epoch
+            train_loss /= num_batches
+
+            # last minibatch
+            if num_batches*batch_size < x_train.shape[0]:
+                x_batch = x_train[num_batches*batch_size:]
+                y_batch = y_train[num_batches*batch_size:]
+
+                _, loss_value = self.sess.run([train, loss],
+                                              {self.inputs: x_batch,
+                                               y_true: y_batch})
+                # adapt loss for whole epoch
+                train_loss = train_loss * \
+                    ((num_batches*batch_size) / x_train.shape[0]) \
+                    + loss_value * \
+                    ((x_train.shape[0] - num_batches*batch_size)
+                     / x_train.shape[0])
+
+            # get validation loss
+            # train_loss = self.sess.run(loss, {self.inputs: x_train})
+            val_loss = self.sess.run(loss, {self.inputs: x_valid,
+                                            y_true: y_valid})
+            val_acc = self._accuracy(x_valid, y_valid)
+            train_acc = self._accuracy(x_train, y_train)
+
+            print('Epoch: %i Train loss: %.4f Train accuracy %.3f'
+                  % (i, train_loss, train_acc))
+            print('Epoch: %i Validation loss: %.4f Validation accuracy %.3f'
+                  % (i, val_loss, val_acc))
+
+    def _accuracy(self, x, y_true):
+        y_pred = self.sess.run(self.logits, {self.inputs: x})
+        y_pred_int = np.argmax(y_pred, axis=1)
+        y_true_int = np.argmax(y_true, axis=1)
+
+        # print(y_pred_int)
+        # print()
+        # print(y_true_int)
+        # print()
+        correct = np.sum(y_pred_int == y_true_int)
+        # print(correct)
+        acc = correct / x.shape[0]
+
+        return acc
+
+
 
 def train_and_validate(x_train, y_train, x_valid, y_valid, num_epochs, lr, num_filters, batch_size):
     # TODO: train and validate your convolutional neural networks with the provided data and hyperparameters
+
+    # build network
+    kernel_size = 3
+    net = CNN(num_filters, kernel_size = kernel_size)
+
+    # train network
+    net.train(x_train, y_train, x_valid, y_valid, num_epochs, lr, batch_size)
+    learning_curve = []
+    model = net
 
     return learning_curve, model  # TODO: Return the validation error after each epoch (i.e learning curve) and your model
 
