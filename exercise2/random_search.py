@@ -1,4 +1,5 @@
 import logging
+import numpy as np
 
 logging.basicConfig(level=logging.WARNING)
 
@@ -20,7 +21,9 @@ class MyWorker(Worker):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.x_train, self.y_train, self.x_valid, self.y_valid, self.x_test, self.y_test = mnist("./")
+
+        self.x_train, self.y_train, self.x_valid, self.y_valid, self.x_test, self.y_test = mnist(
+                                                                        "../exercise1/data")
 
     def compute(self, config, budget, **kwargs):
         """
@@ -41,9 +44,14 @@ class MyWorker(Worker):
 
         epochs = budget
 
-        # TODO: train and validate your convolutional neural networks here
+        # train and validate your convolutional neural networks here
+        learning_curve, model, validation_loss = train_and_validate(self.x_train, self.y_train,
+                                                   self.x_valid, self.y_valid,
+                                                   epochs, lr, num_filters,
+                                                   batch_size, filter_size)
+        # We minimize so make sure you return the validation error here
+        validation_error = np.float64(validation_loss)
 
-        # TODO: We minimize so make sure you return the validation error here
         return ({
             'loss': validation_error,  # this is the a mandatory field to run hyperband
             'info': {}  # can be used for any user-defined information - also mandatory
@@ -53,7 +61,15 @@ class MyWorker(Worker):
     def get_configspace():
         config_space = CS.ConfigurationSpace()
 
-        # TODO: Implement configuration space here. See https://github.com/automl/HpBandSter/blob/master/hpbandster/examples/example_5_keras_worker.py  for an example
+        # Implement configuration space here. See https://github.com/automl/HpBandSter/blob/master/hpbandster/examples/example_5_keras_worker.py  for an example
+        config_space.add_hyperparameter(CS.UniformFloatHyperparameter(
+            'learning_rate', lower=10e-4, upper=1, log=True))
+        config_space.add_hyperparameter(CS.UniformIntegerHyperparameter(
+            'batch_size', lower=16, upper=128, log=True))
+        config_space.add_hyperparameter(CS.UniformIntegerHyperparameter(
+            'num_filters', lower=8, upper=64, log=True))
+        config_space.add_hyperparameter(CS.CategoricalHyperparameter(
+            'filter_size', [3, 5]))
 
         return config_space
 
@@ -108,6 +124,8 @@ print('Best found configuration:', id2config[incumbent]['config'])
 
 # Plots the performance of the best found validation error over time
 all_runs = res.get_all_runs()
+print('All runs:')
+print(all_runs)
 # Let's plot the observed losses grouped by budget,
 import hpbandster.visualization as hpvis
 
@@ -117,3 +135,18 @@ import matplotlib.pyplot as plt
 plt.savefig("random_search.png")
 
 # TODO: retrain the best configuration (called incumbent) and compute the test error
+# get the best hyperparameters
+learning_rate = id2config[incumbent]['config']['learning_rate']
+batch_size = id2config[incumbent]['config']['batch_size']
+filter_size = id2config[incumbent]['config']['filter_size']
+num_filters = id2config[incumbent]['config']['num_filters']
+
+# load data
+x_train, y_train, x_valid, y_valid, x_test, y_test = mnist('../exercise1/data')
+# train the best model agian
+learning_curve, model, _ = train_and_validate(x_train, y_train, x_valid, y_valid,
+                                           12, learning_rate, num_filters,
+                                           batch_size, filter_size)
+
+test_err = test(x_test, y_test, model)
+print(test_err)

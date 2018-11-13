@@ -4,7 +4,7 @@ import numpy as np
 
 from cnn_mnist import mnist, train_and_validate, test
 
-NUM_EPOCHS = 3
+NUM_EPOCHS = 2
 def plot_learning_curves(learning_curves_lst, legend):
     # legend: dictionary of strings
     # graph_labels: legend of each curve
@@ -23,26 +23,18 @@ def plot_learning_curves(learning_curves_lst, legend):
 
     plt.savefig('%s.pdf' % legend['title'])
 
-    # plt.show()
 
 if __name__ == "__main__":
 
     # get data
     train_x, train_y, val_x, val_y, test_x, test_y = mnist('../exercise1/data')
 
-    # use smaller data set for debugging
-    train_x = train_x[:1000]
-    train_y = train_y[:1000]
-    val_x = val_x[:100]
-    val_y = val_y[:100]
-
-
     # 2: test the effect of the learning rate
     learning_rates = [0.1, 0.01, 0.001, 0.0001]
 
     learning_curves_lr = []
     for lr in learning_rates:
-        learning_curve, model = train_and_validate(train_x, train_y,
+        learning_curve, model, _ = train_and_validate(train_x, train_y,
                                                    val_x, val_y,
                                                    num_epochs=NUM_EPOCHS,
                                                    lr=lr,
@@ -52,8 +44,10 @@ if __name__ == "__main__":
         learning_curves_lr.append(learning_curve)
 
         # compute the network's test error
-        # test_err = test(test_x, test_y, model)
-        # print('Final test error: %.4f' % test_err)
+        test_err = test(test_x, test_y, model)
+        print('Final test error: %.4f' % test_err)
+        print()
+
     # plot all learning curves in one figure (validation performance after
     # each epoch)
     plot_learning_curves(learning_curves_lr, {'graph_labels': learning_rates,
@@ -66,14 +60,21 @@ if __name__ == "__main__":
     filter_sizes = [1, 3, 5, 7]
     learning_curves_fs = []
     for fs in filter_sizes:
-        learning_curve, model = train_and_validate(train_x, train_y,
-                                                   val_x, val_y,
-                                                   num_epochs=NUM_EPOCHS,
-                                                   lr=0.1,
-                                                   num_filters=16,
-                                                   kernel_size=fs,
-                                                   batch_size=64)
+        learning_curve, model, _ = train_and_validate(train_x, train_y,
+                                                      val_x, val_y,
+                                                      num_epochs=NUM_EPOCHS,
+                                                      lr=0.1,
+                                                      num_filters=16,
+                                                      kernel_size=fs,
+                                                      batch_size=64)
+        del model
         learning_curves_fs.append(learning_curve)
+
+        # compute the networks test error
+        test_err = test(test_x, test_y, model)
+        print('Final test error: %.4f' % test_err)
+        print()
+
 
     plot_learning_curves(learning_curves_fs, {'graph_labels': filter_sizes,
                                               'title':

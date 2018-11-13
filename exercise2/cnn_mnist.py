@@ -64,15 +64,9 @@ def mnist(datasets_dir='./data'):
 
 class CNN(object):
 
-    def __init__(self, num_filters, kernel_size, device='cpu'):
+    def __init__(self, num_filters, kernel_size):
         # inputs
-        if device == 'gpu':
-            self.device = '/device:GPU:0'
-        else:
-            self.device = '/cpu:0'
-        print('Device:', self.device)
 
-        # with tf.device(self.device):
         self.inputs = tf.placeholder(tf.float32, shape=[None, 28, 28, 1])
         # first convolutional layer, default values: strides=1, use_bias=True
         conv1 = layers.Conv2D(filters=num_filters,
@@ -101,13 +95,10 @@ class CNN(object):
         # intialize the variables
         init = tf.global_variables_initializer()
         self.sess = tf.Session()
-        # self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True,
-        #                        log_device_placement=True))
         self.sess.run(init)
 
     def predict(self, x):
         ''' computes the output of the network for the input X '''
-        # with tf.device(self.device):
         y_pred = self.sess.run(self.out_soft(x))
 
         return y_pred
@@ -116,14 +107,13 @@ class CNN(object):
         ''' trains the network '''
 
         t0 = time.time()
-        # with tf.device(self.device):
         # define the loss
-        y_true = tf.placeholder(tf.float32, shape=[None, 10])
-        loss = tf.losses.softmax_cross_entropy(y_true, self.logits)
+        self.y_true = tf.placeholder(tf.float32, shape=[None, 10])
+        self.loss = tf.losses.softmax_cross_entropy(self.y_true, self.logits)
 
         # define the optimizer
         optimizer = tf.train.GradientDescentOptimizer(learning_rate=lr)
-        train = optimizer.minimize(loss)
+        train = optimizer.minimize(self.loss)
 
         # define training loop
         num_batches = x_train.shape[0] // batch_size
@@ -135,9 +125,9 @@ class CNN(object):
                 x_batch = x_train[b*batch_size:b*batch_size+batch_size]
                 y_batch = y_train[b*batch_size:b*batch_size+batch_size]
 
-                _, loss_value = self.sess.run([train, loss],
+                _, loss_value = self.sess.run([train, self.loss],
                                               {self.inputs: x_batch,
-                                               y_true: y_batch})
+                                               self.y_true: y_batch})
                 train_loss += loss_value
 
             # get the loss for the whole epoch
@@ -148,9 +138,9 @@ class CNN(object):
                 x_batch = x_train[num_batches*batch_size:]
                 y_batch = y_train[num_batches*batch_size:]
 
-                _, loss_value = self.sess.run([train, loss],
+                _, loss_value = self.sess.run([train, self.loss],
                                               {self.inputs: x_batch,
-                                               y_true: y_batch})
+                                               self.y_true: y_batch})
                 # adapt loss for whole epoch
                 train_loss = train_loss * \
                     ((num_batches*batch_size) / x_train.shape[0]) \
@@ -159,9 +149,8 @@ class CNN(object):
                      / x_train.shape[0])
 
             # get validation loss
-            # train_loss = self.sess.run(loss, {self.inputs: x_train})
-            val_loss = self.sess.run(loss, {self.inputs: x_valid,
-                                            y_true: y_valid})
+            val_loss = self.sess.run(self.loss, {self.inputs: x_valid,
+                                            self.y_true: y_valid})
             val_acc = self.accuracy(x_valid, y_valid)
             train_acc = self.accuracy(x_train, y_train)
 
@@ -174,42 +163,52 @@ class CNN(object):
         t1 = time.time()
         print('Time needed for training: %.2fmin' % ((t1-t0)/60))
 
-        return val_error
+        return val_error, val_loss
 
     def accuracy(self, x, y_true):
-        # with tf.device(self.device):
-        y_pred = self.sess.run(self.logits, {self.inputs: x})
+        # divide into several forward passes, if data set too big
+        if x.shape[0] > 1000:
+            num_batches = x.shape[0] // 500
+            batch = x[:500]
+            y_pred = self.sess.run(self.logits, {self.inputs: batch})
+            for i in range(1,num_batches):
+                batch = x[i*500:(i+1)*500]
+                y_pred_batch = self.sess.run(self.logits, {self.inputs: batch})
+                y_pred = np.concatenate((y_pred, y_pred_batch), axis=0)
+
+            if x.shape[0] > num_batches * 500:
+                batch = x[num_batches * 500:]
+                y_pred_batch = self.sess.run(self.logits, {self.inputs: batch})
+                y_pred = np.concatenate((y_pred, y_pred_batch), axis=0)
+        else:
+            y_pred = self.sess.run(self.logits, {self.inputs: x})
         y_pred_int = np.argmax(y_pred, axis=1)
         y_true_int = np.argmax(y_true, axis=1)
 
-        # print(y_pred_int)
-        # print()
-        # print(y_true_int)
-        # print()
         correct = np.sum(y_pred_int == y_true_int)
-        # print(correct)
+
         acc = correct / x.shape[0]
 
         return acc
 
 
 def train_and_validate(x_train, y_train, x_valid, y_valid,
-                       num_epochs, lr, num_filters, kernel_size, batch_size,
-                       device='cpu'):
-    # TODO: train and validate your convolutional neural networks with the
-    # provided data and hyperparameters
+                       num_epochs, lr, num_filters, batch_size, kernel_size):
+
+    # train and validate your convolutional neural networks with the provided data and hyperparameters
     # build network
-    model = CNN(num_filters, kernel_size, device)
+    model = CNN(num_filters, kernel_size)
 
     # train network
-    learning_curve = model.train(x_train, y_train, x_valid, y_valid,
+    learning_curve, val_loss = model.train(x_train, y_train, x_valid, y_valid,
                                  num_epochs, lr, batch_size)
 
-    return learning_curve, model  # TODO: Return the validation error after each epoch (i.e learning curve) and your model
+    # Return the validation error after each epoch (i.e learning curve) and your model
+    return learning_curve, model, val_loss
 
 
 def test(x_test, y_test, model):
-    # TODO: test your network here by evaluating it on the test data
+    # test your network here by evaluating it on the test data
     test_acc = model.accuracy(x_test, y_test)
 
     return 1-test_acc
@@ -219,12 +218,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--output_path", default="./", type=str, nargs="?",
                         help="Path where the results will be stored")
-    parser.add_argument("--input_path", default="./", type=str, nargs="?",
+    parser.add_argument("--input_path", default="../exercise1/data/", type=str, nargs="?",
                         help="Path where the data is located. If the data is not available it will be downloaded first")
     parser.add_argument("--learning_rate", default=1e-3, type=float, nargs="?", help="Learning rate for SGD")
     parser.add_argument("--num_filters", default=32, type=int, nargs="?",
                         help="The number of filters for each convolution layer")
-    parser.add_argument("--batch_size", default=128, type=int, nargs="?", help="Batch size for SGD")
+    parser.add_argument("--batch_size", default=64, type=int, nargs="?", help="Batch size for SGD")
     parser.add_argument("--epochs", default=12, type=int, nargs="?",
                         help="Determines how many epochs the network will be trained")
     parser.add_argument("--run_id", default=0, type=int, nargs="?",
@@ -243,7 +242,9 @@ if __name__ == "__main__":
     # train and test convolutional neural network
     x_train, y_train, x_valid, y_valid, x_test, y_test = mnist(args.input_path)
 
-    learning_curve, model = train_and_validate(x_train, y_train, x_valid, y_valid, epochs, lr, num_filters, batch_size, filter_size)
+    learning_curve, model, _ = train_and_validate(x_train, y_train, x_valid, y_valid,
+                                               epochs, lr, num_filters,
+                                               batch_size, filter_size)
 
     test_error = test(x_test, y_test, model)
 
