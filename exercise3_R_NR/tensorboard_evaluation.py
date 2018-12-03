@@ -11,13 +11,17 @@ class Evaluation:
         tf.summary.scalar("loss", self.tf_loss)
 
         # TODO: define more metrics you want to plot during training (e.g. training/validation accuracy)
-             
+        self.val_loss = tf.placeholder(tf.float32, name="loss_summary_valid")
+        tf.summary.scalar("val_loss", self.val_loss)
+
         self.performance_summaries = tf.summary.merge_all()
 
     def write_episode_data(self, episode, eval_dict):
-        
-       # TODO: add more metrics to the summary 
-       summary = self.sess.run(self.performance_summaries, feed_dict={self.tf_loss : eval_dict["loss"]})
+
+       # TODO: add more metrics to the summary
+       summary = self.sess.run(self.performance_summaries, feed_dict={
+                                self.tf_loss : eval_dict["loss"],
+                                self.val_loss: eval_dict["val_loss"]})
 
        self.tf_writer.add_summary(summary, episode)
        self.tf_writer.flush()

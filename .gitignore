@@ -7,3 +7,8 @@ traincurves.pdf
 *.png
 *.pdf
 !LabReport2.pdf
+exercise3_R_NR/tensorboard/
+exercise3_R_NR/results/
+exercise3_R_NR/data/
+exercise3_R_NR/data_big/
+exercise3_R_NR/models/

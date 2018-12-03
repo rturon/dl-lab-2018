@@ -20,21 +20,41 @@ def one_hot(labels):
     return one_hot_labels
 
 def rgb2gray(rgb):
-    """ 
+    """
     this method converts rgb images to grayscale.
     """
     gray = np.dot(rgb[...,:3], [0.2125, 0.7154, 0.0721])
-    gray =  2 * gray.astype('float32') - 1 
-    return gray 
-
+    gray =  2 * gray.astype('float32') - 1
+    return gray
 
 def action_to_id(a):
-    """ 
+    """
     this method discretizes actions
     """
     if all(a == [-1.0, 0.0, 0.0]): return LEFT               # LEFT: 1
     elif all(a == [1.0, 0.0, 0.0]): return RIGHT             # RIGHT: 2
     elif all(a == [0.0, 1.0, 0.0]): return ACCELERATE        # ACCELERATE: 3
     elif all(a == [0.0, 0.0, 0.8]): return BRAKE             # BRAKE: 4
-    else:       
+    else:
         return STRAIGHT                                      # STRAIGHT = 0
+
+def actions_to_ids(a):
+    action_ids = np.zeros(a.shape[0])
+
+    for i in range(a.shape[0]):
+        action_ids[i] = action_to_id(a[i])
+
+    return action_ids
+
+def action_distribution(y):
+
+    action_counter = np.zeros(5)
+
+    # action_ids = actions_to_ids(y)
+    # unfortunately the next row does not work if not all actions are in the
+    # sample
+    # _, action_counter = np.unique(action_ids, return_counts=True)
+    for i in range(y.shape[0]):
+        action_counter[action_ids[i] == 1] += 1
+
+    return action_counter
