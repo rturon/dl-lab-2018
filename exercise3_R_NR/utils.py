@@ -24,17 +24,18 @@ def rgb2gray(rgb):
     this method converts rgb images to grayscale.
     """
     gray = np.dot(rgb[...,:3], [0.2125, 0.7154, 0.0721])
-    gray =  2 * gray.astype('float32') - 1
-    return gray
+    return gray.astype('float32')
+
 
 def action_to_id(a):
     """
-    this method discretizes actions
+    this method discretizes the actions.
+    Important: this method only works if you recorded data pressing only one key at a time!
     """
     if all(a == [-1.0, 0.0, 0.0]): return LEFT               # LEFT: 1
     elif all(a == [1.0, 0.0, 0.0]): return RIGHT             # RIGHT: 2
     elif all(a == [0.0, 1.0, 0.0]): return ACCELERATE        # ACCELERATE: 3
-    elif all(a == [0.0, 0.0, 0.8]): return BRAKE             # BRAKE: 4
+    elif all(a == [0.0, 0.0, 0.2]): return BRAKE             # BRAKE: 4
     else:
         return STRAIGHT                                      # STRAIGHT = 0
 
