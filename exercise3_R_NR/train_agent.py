@@ -67,7 +67,8 @@ def preprocessing(X_train, y_train, X_valid, y_valid, history_length=1):
     return X_train_gray, y_one_hot_train, X_valid_gray, y_one_hot_valid
 
 
-def train_model(X_train, y_train, X_valid, y_valid, n_minibatches, batch_size, lr, model_dir="./models", tensorboard_dir="./tensorboard"):
+def train_model(X_train, y_train, X_valid, y_valid, n_minibatches, batch_size, lr, model_dir="./models", tensorboard_dir="./tensorboard",
+                history_length=1):
 
     # create result and model folders
     if not os.path.exists(model_dir):
@@ -77,9 +78,9 @@ def train_model(X_train, y_train, X_valid, y_valid, n_minibatches, batch_size, l
 
 
     # TODO: specify your neural network in model.py
-    ks = 3
-    num_kernels = 64
-    agent = Model(lr, ks, num_kernels, history_length=1)
+    ks = 5
+    num_kernels = 32
+    agent = Model(lr, ks, num_kernels, history_length=history_length)
 
     tensorboard_eval = Evaluation(tensorboard_dir)
 
@@ -93,11 +94,11 @@ def train_model(X_train, y_train, X_valid, y_valid, n_minibatches, batch_size, l
 
         return X_minibatch, y_minibatch
 
-    def sample_minibatch_with_uniform_actions(X, y, batch_size):
+    def create_probability_mask(y):
         distr = "uniform"
         num_classes = 5
         # get discrete actions
-        y_discrete = actions_to_ids(y)
+        # y_discrete = actions_to_ids(y)
         action_counts = action_distribution(y)
         # get the probabilities from the frequency of the classes
         if distr == "uniform":
@@ -109,16 +110,23 @@ def train_model(X_train, y_train, X_valid, y_valid, n_minibatches, batch_size, l
             action_counts = action_counts * 1/num_classes
 
         # get a mask with the probabilities for choosing each data point
-        mask = y_discrete.copy()
+        mask = np.zeros(y.shape[0])
         for i in range(5):
-            mask[y_discrete == i] = action_counts[i]
+            mask[y[:,i] == 1] = action_counts[i]
+
+        return mask
+
+
+    def sample_minibatch_with_uniform_actions(X, y, batch_size, mask):
+
         # now sample indices according to the probabilities
         indices = np.arange(y.shape[0])
+
         batch_inds = np.random.choice(indices, size=batch_size, p=mask)
         # create batch
         X_batch = X[batch_inds,...]
         y_batch = y[batch_inds,...]
-        print(action_distribution(y_batch))
+        # print(action_distribution(y_batch))
 
         return X_batch, y_batch
 
@@ -127,17 +135,27 @@ def train_model(X_train, y_train, X_valid, y_valid, n_minibatches, batch_size, l
     # 2. compute training/ validation accuracy and loss for the batch and visualize them with tensorboard. You can watch the progress of
     #    your training in your web browser
     #
+    # create probability mask for the sampling
+    prob_mask = create_probability_mask(y_train)
     # training loop
     for i in range(n_minibatches):
-        X_batch, y_batch = sample_minibatch_with_uniform_actions(X_train, y_train, batch_size)
+        X_batch, y_batch = sample_minibatch_with_uniform_actions(X_train,
+                                                                 y_train,
+                                                                 batch_size,
+                                                                 prob_mask)
         _, train_loss = agent.sess.run([agent.train, agent.loss],
                                        {agent.inputs: X_batch,
                                         agent.targets: y_batch})
         val_loss = agent.sess.run(agent.loss, {agent.inputs: X_valid,
                                                agent.targets: y_valid})
-        print('Step %i, Training Loss: %.4f, Validation Loss: %.4f' %(i, train_loss, val_loss))
-        tensorboard_eval.write_episode_data(i, {"loss": train_loss,
-                                                "val_loss": val_loss})
+        if i % 10 == 0:
+            train_acc = agent.accuracy(X_batch, y_batch)
+            val_acc = agent.accuracy(X_valid, y_valid)
+            print('Step %i, Training Loss: %.4f, Validation Loss: %.4f' %(i, train_loss, val_loss))
+            print('Train accuracy: %.2f, Validation accuracy: %.2f' %(train_acc * 100,
+                                                                  val_acc * 100))
+            tensorboard_eval.write_episode_data(i, {"loss": train_loss,
+                                                    "val_loss": val_loss})
 
     # TODO: save your agent
     model_dir = agent.save(os.path.join(model_dir, "agent.ckpt"))
@@ -145,13 +163,16 @@ def train_model(X_train, y_train, X_valid, y_valid, n_minibatches, batch_size, l
 
 
 if __name__ == "__main__":
-
+    HISTORY_LENGTH = 1
     # read data
-    X_train, y_train, X_valid, y_valid = read_data("./data")
+    X_train, y_train, X_valid, y_valid = read_data("./data_10000")
 
     # preprocess data
-    X_train, y_train, X_valid, y_valid = preprocessing(X_train, y_train, X_valid, y_valid, history_length=1)
+    X_train, y_train, X_valid, y_valid = preprocessing(X_train, y_train,
+                                                       X_valid, y_valid,
+                                                       history_length=HISTORY_LENGTH)
 
     # train model (you can change the parameters!)
     # train_model(X_train, y_train, X_valid, y_valid, n_minibatches=100000, batch_size=64, lr=0.0001)
-    train_model(X_train, y_train, X_valid, y_valid, n_minibatches=500, batch_size=512, lr=0.00000001)
+    train_model(X_train, y_train, X_valid, y_valid, n_minibatches=201,
+                batch_size=128, lr=0.0001, history_length=HISTORY_LENGTH)

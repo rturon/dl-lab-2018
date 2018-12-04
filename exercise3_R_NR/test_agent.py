@@ -24,7 +24,16 @@ def run_episode(env, agent, rendering=True, max_timesteps=1000):
 
         # TODO: get the action from your agent! If you use discretized actions you need to transform them to continuous
         # actions again. a needs to have a shape like np.array([0.0, 0.0, 0.0])
-        a = agent.sess.run(agent.y_pred, {agent.inputs: state})[0]
+        y_pred = agent.sess.run(agent.y_pred, {agent.inputs: state})[0]
+
+        def unhot(y):
+            if np.argmax(y) == 0: return np.array([0.0, 0.0, 0.0])
+            elif np.argmax(y) == 1: return np.array([-1.0, 0.0, 0.0])
+            elif np.argmax(y) == 2: return np.array([1.0, 0.0, 0.0])
+            elif np.argmax(y) == 3: return np.array([0.0, 1.0, 0.0])
+            elif np.argmax(y) == 4: return np.array([0.0, 0.0, 0.2])
+
+        a = unhot(y_pred)
 
         next_state, r, done, info = env.step(a)
         episode_reward += r
@@ -50,7 +59,7 @@ if __name__ == "__main__":
     # TODO: load agent
     lr = 0
     ks = 3
-    num_kernels = 64
+    num_kernels = 16
     agent = Model(lr, ks, num_kernels, history_length=1)
     agent.load("models/agent.ckpt")
 

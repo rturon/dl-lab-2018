@@ -12,7 +12,8 @@ def one_hot(labels):
     i.e. given y = [0,2,1]
      it creates y_one_hot = [[1,0,0], [0,0,1], [0,1,0]]
     """
-    classes = np.unique(labels)
+    # classes = np.unique(labels)
+    classes = np.array(range(5))
     n_classes = classes.size
     one_hot_labels = np.zeros(labels.shape + (n_classes,))
     for c in classes:
@@ -40,7 +41,7 @@ def action_to_id(a):
         return STRAIGHT                                      # STRAIGHT = 0
 
 def actions_to_ids(a):
-    action_ids = np.zeros(a.shape[0])
+    action_ids = np.zeros(a.shape[0], dtype=int)
 
     for i in range(a.shape[0]):
         action_ids[i] = action_to_id(a[i])
@@ -56,6 +57,6 @@ def action_distribution(y):
     # sample
     # _, action_counter = np.unique(action_ids, return_counts=True)
     for i in range(y.shape[0]):
-        action_counter[action_ids[i] == 1] += 1
+        action_counter[y[i] == 1] += 1
 
     return action_counter
