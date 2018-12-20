@@ -11,6 +11,8 @@ exercise3_R_NR/results/
 */data*
 exercise3_R_NR/data_big/
 */models*
+*/tensorboard
+*/dqn/__pycache__
 
 ### excluding
 !LabReport2.pdf

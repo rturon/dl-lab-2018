@@ -17,6 +17,15 @@ class ReplayBuffer:
         """
         This method adds a transition to the replay buffer.
         """
+        # check if the capacity limit is reached
+        if len(self._data.states) > 100000:
+            # pop the first element from the list, i.e. the oldest data entry
+            self._data.states.pop(0)
+            self._data.actions.pop(0)
+            self._data.next_states.pop(0)
+            self._data.rewards.pop(0)
+            self._data.dones.pop(0)
+
         self._data.states.append(state)
         self._data.actions.append(action)
         self._data.next_states.append(next_state)
