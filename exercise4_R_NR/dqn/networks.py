@@ -28,8 +28,11 @@ class NeuralNetwork():
 
         # Get the predictions for the chosen actions only
         batch_size = tf.shape(self.states_)[0]
-        gather_indices = tf.range(batch_size) * tf.shape(self.predictions)[1] + self.actions_
-        self.action_predictions = tf.gather(tf.reshape(self.predictions, [-1]), gather_indices)
+        # get index of actions chosen when predictions flattened
+        # -> first part: get first index of each row in flattened array
+        # -> + actions: add correct column index
+        self.gather_indices = tf.range(batch_size) * tf.shape(self.predictions)[1] + self.actions_
+        self.action_predictions = tf.gather(tf.reshape(self.predictions, [-1]), self.gather_indices)
 
         # Calculate the loss
         self.losses = tf.squared_difference(self.targets_, self.action_predictions)
@@ -47,7 +50,7 @@ class NeuralNetwork():
         Returns:
           The prediction of the output tensor.
         """
-        prediction = sess.run(self.predictions, { self.states_: states })
+        prediction = sess.run(self.predictions, {self.states_: states})
         return prediction
 
 

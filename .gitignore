@@ -13,6 +13,9 @@ exercise3_R_NR/data_big/
 */models*
 */tensorboard
 */dqn/__pycache__
+*/results
+*/old_models/
+*random_search_cartpole.py
 
 ### excluding
 !LabReport2.pdf

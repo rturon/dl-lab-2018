@@ -47,14 +47,18 @@ class DQNAgent:
 
         # TODO:
         # 1. add current transition to replay buffer
+
         self.replay_buffer.add_transition(state, action, next_state, reward, terminal)
         # 2. sample next batch and perform batch update:
         batch_states, batch_actions, batch_next_states, batch_rewards, batch_dones = \
             self.replay_buffer.next_batch(self.batch_size)
+        # print('###### Batch states ############')
+        # print(batch_states)
         #       2.1 compute td targets:
         #              td_target =  reward + discount * argmax_a Q_target(next_state_batch, a)
+        # print(batch_dones)
         target_Qs = np.max(self.Q_target.predict(self.sess, batch_next_states), axis=1)
-        batch_targets = batch_rewards + self.discount_factor * target_Qs
+        batch_targets = batch_rewards + self.discount_factor * target_Qs * batch_dones
         #       2.2 update the Q network
         #              self.Q.update(...)
         loss = self.Q.update(self.sess, batch_states, batch_actions, batch_targets)
@@ -81,7 +85,7 @@ class DQNAgent:
             # TODO: take greedy action (argmax)
             #state = state.reshape(-1, )
             action_id = int(np.argmax(self.Q.predict(self.sess, [state]), axis=1))
-            # print('Action according to policy')
+            # print('Action according to policy: ', action_id)
         else:
 
             # TODO: sample random action
@@ -91,7 +95,7 @@ class DQNAgent:
             ##### for carracing:
             ##### np.random.choice(np.range(self.num_actions), p=[0.1, 0.1, 0.1, 0.1, 0.6])
             action_id = np.random.randint(self.num_actions)
-            # print('Exploration')
+            # print('Exploration: ', action_id)
         # print('Action id:', action_id)
         return action_id
 
