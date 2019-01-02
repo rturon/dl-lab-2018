@@ -31,7 +31,7 @@ class DQNAgent:
         self.discount_factor = discount_factor
 
         # define replay buffer
-        self.replay_buffer = ReplayBuffer()
+        self.replay_buffer = ReplayBuffer(use_manual_data=False)
 
         # Start tensorflow session
         self.sess = tf.Session()
@@ -40,33 +40,51 @@ class DQNAgent:
         self.saver = tf.train.Saver()
 
 
-    def train(self, state, action, next_state, reward, terminal):
+    def train(self, state, action, next_state, reward, terminal, collect_data_first=False):
         """
         This method stores a transition to the replay buffer and updates the Q networks.
         """
 
         # TODO:
         # 1. add current transition to replay buffer
-
-        self.replay_buffer.add_transition(state, action, next_state, reward, terminal)
         # 2. sample next batch and perform batch update:
-        batch_states, batch_actions, batch_next_states, batch_rewards, batch_dones = \
-            self.replay_buffer.next_batch(self.batch_size)
-        # print('###### Batch states ############')
-        # print(batch_states)
         #       2.1 compute td targets:
         #              td_target =  reward + discount * argmax_a Q_target(next_state_batch, a)
-        # print(batch_dones)
-        target_Qs = np.max(self.Q_target.predict(self.sess, batch_next_states), axis=1)
-        batch_targets = batch_rewards + self.discount_factor * target_Qs * batch_dones
         #       2.2 update the Q network
         #              self.Q.update(...)
-        loss = self.Q.update(self.sess, batch_states, batch_actions, batch_targets)
-        # get predictions to check q-values
-        q_preds = self.Q.predict(self.sess, batch_states)
         #       2.3 call soft update for target network
         #              self.Q_target.update(...)
-        self.Q_target.update(self.sess)
+
+        self.replay_buffer.add_transition(state, action, next_state, reward, terminal)
+        if collect_data_first and len(self.replay_buffer._data.states) < self.batch_size:
+            print("No training yet. Filling up replay buffer..")
+
+            # return 0 for loss and q_values
+            return 0, [0,0]
+
+        else:
+            batch_states, batch_actions, batch_next_states, batch_rewards, batch_dones = \
+                self.replay_buffer.next_batch(self.batch_size)
+
+            # target_Qs = np.max(self.Q_target.predict(self.sess, batch_next_states), axis=1)
+            # batch_targets = batch_rewards + self.discount_factor * target_Qs * batch_dones
+
+            batch_targets = np.zeros((self.batch_size))
+
+            for i in range(self.batch_size):
+                if batch_dones[i]:
+                    batch_targets[i] = batch_rewards[i]
+                else:
+                    td_target = batch_rewards[i] + self.discount_factor * \
+                        np.max(self.Q_target.predict(self.sess, [batch_next_states[i]])) # , axis=1
+                    # print('Batch target:', td_target)
+                    batch_targets[i] = td_target
+
+            loss = self.Q.update(self.sess, batch_states, batch_actions, batch_targets)
+            # get predictions to check q-values
+            q_preds = self.Q.predict(self.sess, batch_states)
+
+            self.Q_target.update(self.sess)
 
         return loss, q_preds
 
@@ -84,7 +102,9 @@ class DQNAgent:
         if deterministic or r > self.epsilon:
             # TODO: take greedy action (argmax)
             #state = state.reshape(-1, )
-            action_id = int(np.argmax(self.Q.predict(self.sess, [state]), axis=1))
+            # action_id = int(np.argmax(self.Q.predict(self.sess, [state]), axis=1))
+            action_id = np.argmax(self.Q.predict(self.sess, [state]))
+            # print("Deterministic action:", action_id)
             # print('Action according to policy: ', action_id)
         else:
 
@@ -93,8 +113,12 @@ class DQNAgent:
             # You can sample the agents actions with different probabilities (need to sum up to 1) so that the agent will prefer to accelerate or going straight.
             # To see how the agent explores, turn the rendering in the training on and look what the agent is doing.
             ##### for carracing:
+            # check if carracing #!/usr/bin/env python
+            if self.num_actions == 5:
+                action_id = np.random.choice(range(5), p=[0.32, 0.09, 0.09, 0.45, 0.05])
             ##### np.random.choice(np.range(self.num_actions), p=[0.1, 0.1, 0.1, 0.1, 0.6])
             action_id = np.random.randint(self.num_actions)
+            # print("Explorative action:", action_id)
             # print('Exploration: ', action_id)
         # print('Action id:', action_id)
         return action_id

@@ -13,18 +13,15 @@ if __name__ == "__main__":
 
     env = gym.make("CartPole-v0").unwrapped
 
-    # load agent
-    env = gym.make("CartPole-v0").unwrapped
-
     # get state space and number of actions
-    state_dim = env.observation_space.shape[0]
-    num_actions = env.action_space.n
+    state_dim = 4  # env.observation_space.shape[0]
+    num_actions = 2  # env.action_space.n
 
     # create neural networks
-    Q = NeuralNetwork(state_dim=state_dim, num_actions=num_actions)
-    Q_target = TargetNetwork(state_dim=state_dim, num_actions=num_actions)
+    Q = NeuralNetwork(state_dim=state_dim, num_actions=num_actions, hidden=16)
+    Q_target = TargetNetwork(state_dim=state_dim, num_actions=num_actions, hidden=16)
     # create agent
-    agent = DQNAgent(Q, Q_target, num_actions, discount_factor=0.7)
+    agent = DQNAgent(Q, Q_target, num_actions, discount_factor=0.9)
     agent.load('./models_cartpole/dqn_agent.ckpt')
 
     n_test_episodes = 15

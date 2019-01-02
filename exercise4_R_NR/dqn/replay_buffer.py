@@ -4,14 +4,32 @@ import os
 import gzip
 import pickle
 
+def load_data(data_dir="./manual_data"):
+
+    data_file = os.path.join(data_dir, "data.pkl.gzip")
+
+    f = gzip.open(data_file, "rb")
+    data = pickle.load(f)
+
+    return data
+
+
 class ReplayBuffer:
 
     # TODO: implement a capacity for the replay buffer (FIFO, capacity: 1e5 - 1e6)
 
     # Replay buffer for experience replay. Stores transitions.
-    def __init__(self):
+    def __init__(self, use_manual_data=False):
         self._data = namedtuple("ReplayBuffer", ["states", "actions", "next_states", "rewards", "dones"])
         self._data = self._data(states=[], actions=[], next_states=[], rewards=[], dones=[])
+
+        if use_manual_data:
+            manual_data = load_data()
+            self._data.states.extend(manual_data["states"])
+            self._data.actions.extend(manual_data["actions"])
+            self._data.next_states.extend(manual_data["next_states"])
+            self._data.rewards.extend(manual_data["rewards"])
+            self._data.dones.extend(manual_data["dones"])
 
     def add_transition(self, state, action, next_state, reward, done):
         """
@@ -31,6 +49,7 @@ class ReplayBuffer:
         self._data.next_states.append(next_state)
         self._data.rewards.append(reward)
         self._data.dones.append(done)
+
 
     def next_batch(self, batch_size):
         """

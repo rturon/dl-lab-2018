@@ -25,16 +25,17 @@ def run_episode(env, agent, deterministic, do_training=True, rendering=False, ma
         action_id = agent.act(state=state, deterministic=deterministic)
         next_state, reward, terminal, info = env.step(action_id)
 
-        stats.step(reward, action_id)
 
 
         if do_training:
             # add doubble the amount of samples to replay buffer as batch_size before starting training
-            if len(agent.replay_buffer._data.states) < agent.batch_size * 2:
-                agent.replay_buffer.add_transition(state, action_id, next_state, reward, terminal)
-            else:
+            # if len(agent.replay_buffer._data.states) < agent.batch_size * 2:
+            #     agent.replay_buffer.add_transition(state, action_id, next_state, reward, terminal)
+            # else:
                 loss, qs = agent.train(state, action_id, next_state, reward, terminal)
                 q_values.append(np.mean(qs))
+
+        stats.step(reward, action_id)
 
         state = next_state
 
@@ -46,7 +47,7 @@ def run_episode(env, agent, deterministic, do_training=True, rendering=False, ma
 
         step += 1
 
-    if do_training and len(agent.replay_buffer._data.states) >= agent.batch_size * 2:
+    if do_training: # and len(agent.replay_buffer._data.states) >= agent.batch_size * 2:
         return stats, loss, q_values
 
     return stats
@@ -87,7 +88,7 @@ def train_online(env, agent, num_episodes, model_dir="./models_cartpole", tensor
         # print('episode_reward', stats.episode_reward)
         # TODO: evaluate your agent once in a while for some episodes using run_episode(env, agent, deterministic=True, do_training=False) to
         # check its performance with greedy actions only. You can also use tensorboard to plot the mean episode reward.
-        if i % 100 == 0:
+        if i % 50 == 0:
             stats_det = run_episode(env, agent, deterministic=True, do_training=False)
             print('Episode reward deterministic:', stats_det.episode_reward)
             print('Action 0 selected:', stats_det.get_action_usage(0))
@@ -96,11 +97,11 @@ def train_online(env, agent, num_episodes, model_dir="./models_cartpole", tensor
             #     "a_0_det": stats_det.get_action_usage(0),
             #     "a_1_det": stats_det.get_action_usage(1)})
 
-        if i % 2000 == 0:
-            print('Adapting esilon')
-            if agent.epsilon > 0.11:
-                agent.epsilon -= 0.1
-                print("New epsilon:", agent.epsilon)
+        # if i % 2000 == 0:
+        #     print('Adapting esilon')
+        #     if agent.epsilon > 0.11:
+        #         agent.epsilon -= 0.1
+        #         print("New epsilon:", agent.epsilon)
 
         # store model every 100 episodes and in the end.
         if i % 100 == 0 or i >= (num_episodes - 1):
@@ -108,24 +109,34 @@ def train_online(env, agent, num_episodes, model_dir="./models_cartpole", tensor
 
     tensorboard.close_session()
 
-def create_and_train_agent(lr, epsilon, discount_factor, bs, tau, num_episodes, hidden=20):
+def create_and_train_agent(lr, epsilon, discount_factor, bs, tau, num_episodes,
+                           hidden=20):
 
     # create environment
     env = gym.make("CartPole-v0").unwrapped
 
     # get state space and number of actions
-    state_dim = env.observation_space.shape[0]
-    num_actions = env.action_space.n
+    state_dim = 4 # env.observation_space.shape[0]
+    num_actions = 2 # env.action_space.n
 
     # create neural networks
-    Q = NeuralNetwork(state_dim=state_dim, num_actions=num_actions, lr=lr)
+    Q = NeuralNetwork(state_dim=state_dim, num_actions=num_actions,
+                     hidden=hidden, lr=lr)
     Q_target = TargetNetwork(state_dim=state_dim, num_actions=num_actions,
-                             tau=tau)
+                             hidden=hidden, lr=lr, tau=tau)
     # create agent
     agent = DQNAgent(Q, Q_target, num_actions, discount_factor=discount_factor,
                      batch_size=bs, epsilon=epsilon)
     # train agent
     train_online(env, agent, num_episodes=num_episodes)
+
+    # get some final values to compare different networks
+    rewards = []
+    for i in range(10):
+        stats_det = run_episode(env, agent, deterministic=True, do_training=False)
+        rewards.append(stats_det.episode_reward)
+
+    return np.mean(rewards)
 
 if __name__ == "__main__":
 
@@ -140,13 +151,15 @@ if __name__ == "__main__":
     # taus = [0.01, 0.05]
     # params_product = it.product(learning_rates, batch_sizes, discount_factors, taus)
 
-    NUM_EPISODES = 2000
+    NUM_EPISODES = 170
     EPSILON = 0.05            # default 0.05
-    LEARNING_RATE = 3e-4     # default 1e-4
+    LEARNING_RATE = 0.003   # default 1e-4
     BATCHSIZE = 64             # default 64
     DISCOUNT_FACTOR = 0.9     # default 0.99
     TAU = 0.01                 # default 0.01
-    NUM_UNITS = 200           # default 20
+    NUM_UNITS = 16           # default 20
 
-    create_and_train_agent(LEARNING_RATE, EPSILON, DISCOUNT_FACTOR, BATCHSIZE,
+    final_rewards = create_and_train_agent(LEARNING_RATE, EPSILON, DISCOUNT_FACTOR, BATCHSIZE,
                            TAU, NUM_EPISODES, hidden=NUM_UNITS)
+
+    print("Mean reward after training:", final_rewards)
