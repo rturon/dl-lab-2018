@@ -6,10 +6,10 @@ class CNN():
     """
     Convolutional Neural Network class for the carracing RL agent
     """
-    def __init__(self, state_dim, num_actions, num_kernels, kernel_size, lr=1e-4):
-        self._build_model(state_dim, num_actions, num_kernels, kernel_size, lr)
+    def __init__(self, state_dim, num_actions, num_kernels, kernel_size, lr=1e-4, stride=1):
+        self._build_model(state_dim, num_actions, num_kernels, kernel_size, lr, stride)
 
-    def _build_model(self, state_dim, num_actions, num_kernels, kernel_size, lr):
+    def _build_model(self, state_dim, num_actions, num_kernels, kernel_size, lr, stride):
         """
         This method creates a neural network with two hidden fully connected layers and 20 neurons each. The output layer
         has #a neurons, where #a is the number of actions and has linear activation.
@@ -23,11 +23,25 @@ class CNN():
         self.targets_ = tf.placeholder(tf.float32,  shape=[None])               # The TD target value
 
         # network
-        conv1 = tf.layers.conv2d(self.states_,filters=num_kernels, kernel_size=kernel_size,
-                                 strides=1, activation=tf.nn.relu)
-        conv2 = tf.layers.conv2d(conv1,filters=num_kernels, kernel_size=kernel_size,
-                                 strides=1, activation=tf.nn.relu)
-        flat = tf.layers.flatten(conv2)
+        if isinstance(num_kernels, int) or isinstance(kernel_size, int) or isinstance(stride, int):
+            conv1 = tf.layers.conv2d(self.states_,filters=num_kernels, kernel_size=kernel_size,
+                                     strides=1, activation=tf.nn.relu)
+            conv2 = tf.layers.conv2d(conv1,filters=num_kernels, kernel_size=kernel_size,
+                                     strides=1, activation=tf.nn.relu)
+            flat = tf.layers.flatten(conv2)
+
+        else:
+            conv1 = tf.layers.conv2d(self.states_, filters=num_kernels[0],
+                                     kernel_size=kernel_size[0], strides=stride[0],
+                                     activation=tf.nn.relu)
+            conv2 = tf.layers.conv2d(conv1, filters=num_kernels[1],
+                                     kernel_size=kernel_size[1], strides=stride[1],
+                                     activation=tf.nn.relu)
+            conv3 = tf.layers.conv2d(conv2, filters=num_kernels[2],
+                                      kernel_size=kernel_size[2], strides=stride[2],
+                                      activation=tf.nn.relu)
+            flat = tf.layers.flatten(conv3)
+
         fc1 = tf.layers.dense(flat, 100, tf.nn.relu)
         self.predictions = tf.layers.dense(fc1, num_actions)
 
@@ -81,9 +95,9 @@ class CNNTargetNetwork(CNN):
     it is always set to the values of its associate.
     """
 
-    def __init__(self, state_dim, num_actions, num_kernels, kernel_size, lr=1e-4, tau=0.01):
+    def __init__(self, state_dim, num_actions, num_kernels, kernel_size, lr=1e-4, tau=0.01, stride=1):
         super(CNNTargetNetwork, self).__init__(state_dim, num_actions, num_kernels,
-                                            kernel_size, lr)
+                                            kernel_size, lr, stride)
         # NeuralNetwork.__init__(self, state_dim, num_actions, hidden, lr)
         self.tau = tau
         self._associate = self._register_associate()

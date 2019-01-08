@@ -109,21 +109,26 @@ def train_online(env, agent, num_episodes, history_length=0,
         # Hint: you can keep the episodes short in the beginning by changing
         # max_timesteps (otherwise the car will spend most of the time out of the track)
         # small number of max_timesteps at the beginning
-        if i < 50:
-            max_timesteps = 250
-            # if i == 21:
-            #     agent.epsilon = 0.4
-            # elif i == 31:
-            #     agent.epsilon = 0.3
-            if i == 31:
-                agent.epsilon = 0.1
+        epsilons = [0.5, 0.4, 0.3, 0.2, 0.1, 0.05]
 
-        # bigger number at later episodes
+        if i < 20:
+            max_timesteps = 250
+            agent.epsilon = epsilons[0]
+        elif i < 40:
+            max_timesteps = 250
+            agent.epsilon = epsilons[1]
+        elif i < 60:
+            max_timesteps = 500
+            agent.epsilon = epsilons[2]
         elif i < 80:
             max_timesteps = 500
+            agent.epsilon = epsilons[3]
+        elif i < 100:
+            max_timesteps = 500
+            agent.epsilon = epsilons[4]
         else:
             max_timesteps = 1000
-            agent.epsilon = 0.05
+            agent.epsilon = epsilons[5]
 
         stats, loss, q_values = run_episode(env, agent, max_timesteps=max_timesteps,
                                             skip_frames=3, deterministic=False,
@@ -142,6 +147,10 @@ def train_online(env, agent, num_episodes, history_length=0,
 
         # TODO: evaluate agent with deterministic actions from time to time
         if i % 10 == 0:
+            stats_val_fr = run_episode(env, agent, max_timesteps=max_timesteps,
+                            skip_frames=3, deterministic=True,
+                            do_training=False, rendering=True)
+            print("Episode reward deterministic with frames skipped:", stats_val_fr.episode_reward)
             stats_val = run_episode(env, agent, max_timesteps=max_timesteps,
                                                             skip_frames=0, deterministic=True,
                                                             do_training=False, rendering=True)
@@ -159,7 +168,7 @@ def state_preprocessing(state):
 
 def create_and_train_agent(num_kernels, kernel_size, lr, history_length,
                            batch_size, num_episodes, epsilon, discount_factor,
-                           tau, model_dir="./models_carracing"):
+                           tau, stride=1, model_dir="./models_carracing"):
 
     env = gym.make('CarRacing-v0').unwrapped
 
@@ -170,10 +179,10 @@ def create_and_train_agent(num_kernels, kernel_size, lr, history_length,
     # print("Number of actions:", num_actions)
 
     # create Q network
-    Q = CNN(state_dim, num_actions, num_kernels, kernel_size, lr)
+    Q = CNN(state_dim, num_actions, num_kernels, kernel_size, lr, stride)
     # create target network
     Q_target = CNNTargetNetwork(state_dim, num_actions, num_kernels, kernel_size,
-                                lr, tau)
+                                lr, tau, stride)
     print("Creating agent now ..")
     # create dqn_agent
     dqn_agent = DQNAgent(Q, Q_target, num_actions, discount_factor, batch_size, epsilon)
@@ -189,18 +198,19 @@ if __name__ == "__main__":
     # env = gym.make('CarRacing-v0').unwrapped
 
     # set parameters
-    num_kernels = 16
-    kernel_size = 5
-    lr = 5e-5
+    num_kernels = [32, 64, 64]
+    kernel_size = [8, 4, 3]
+    lr = 0.001
     history_length=0
-    bs = 64
-    num_episodes = 200
-    epsilon = 0.2
-    df = 0.95
+    bs = 128
+    num_episodes = 500
+    epsilon = 0.5
+    df = 0.99
     tau = 0.01
+    stride = [4, 2, 1]
 
     # TODO: Define Q network, target network and DQN dqn_agent
     create_and_train_agent(num_kernels, kernel_size, lr, history_length, bs,
-                           num_episodes, epsilon, df, tau)
+                           num_episodes, epsilon, df, tau, stride)
 
     # train_online(env, agent, num_episodes=1000, history_length=0, model_dir="./models_carracing")

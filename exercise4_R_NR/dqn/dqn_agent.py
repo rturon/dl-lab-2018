@@ -115,8 +115,8 @@ class DQNAgent:
             ##### for carracing:
             # check if carracing #!/usr/bin/env python
             if self.num_actions == 5:
-                action_id = np.random.choice(range(5), p=[0.32, 0.09, 0.09, 0.45, 0.05])
-            ##### np.random.choice(np.range(self.num_actions), p=[0.1, 0.1, 0.1, 0.1, 0.6])
+                action_id = np.random.choice(range(5), p=[0.32, 0.09, 0.09, 0.4, 0.1])
+            ##### np.random.choice(np.range(self.num_actions), p=[0.32, 0.09, 0.09, 0.45, 0.05])
             action_id = np.random.randint(self.num_actions)
             # print("Explorative action:", action_id)
             # print('Exploration: ', action_id)

@@ -17,6 +17,7 @@ exercise3_R_NR/data_big/
 */old_models*
 */manual_data/*
 *random_search_cartpole.py
+*.csv
 
 ### excluding
 !LabReport2.pdf

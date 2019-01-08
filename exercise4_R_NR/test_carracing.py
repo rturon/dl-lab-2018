@@ -20,22 +20,23 @@ if __name__ == "__main__":
 
     #TODO: Define networks and load agent
     # set parameters
-    num_kernels = 16
-    kernel_size = 5
+    num_kernels = [32, 64, 64]
+    kernel_size = [8, 4, 3]
     history_length=0
-    bs = 64
-    df = 0.9
+    bs = 128
+    df = 0.99
     tau = 0.01
+    stride = [4, 2, 1]
 
     # get state space and number of actions
     state_dim = env.observation_space.shape
     state_dim = (state_dim[0], state_dim[1], history_length+1)
     num_actions = 5
 
-    Q = CNN(state_dim, num_actions, num_kernels, kernel_size)
+    Q = CNN(state_dim, num_actions, num_kernels, kernel_size, stride=stride)
     # create target network
     Q_target = CNNTargetNetwork(state_dim, num_actions, num_kernels, kernel_size,
-                                1e-4, tau)
+                                1e-4, tau, stride=stride)
     # create dqn_agent
     agent = DQNAgent(Q, Q_target, num_actions, df)
     agent.load('./models_carracing/dqn_agent.ckpt')
