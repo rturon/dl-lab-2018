@@ -21,19 +21,12 @@ def run_episode(env, agent, deterministic, do_training=True, rendering=False, ma
     q_values = []
     while True:
 
-
         action_id = agent.act(state=state, deterministic=deterministic)
         next_state, reward, terminal, info = env.step(action_id)
 
-
-
         if do_training:
-            # add doubble the amount of samples to replay buffer as batch_size before starting training
-            # if len(agent.replay_buffer._data.states) < agent.batch_size * 2:
-            #     agent.replay_buffer.add_transition(state, action_id, next_state, reward, terminal)
-            # else:
-                loss, qs = agent.train(state, action_id, next_state, reward, terminal)
-                q_values.append(np.mean(qs))
+            loss, qs = agent.train(state, action_id, next_state, reward, terminal)
+            q_values.append(np.mean(qs))
 
         stats.step(reward, action_id)
 
@@ -47,7 +40,7 @@ def run_episode(env, agent, deterministic, do_training=True, rendering=False, ma
 
         step += 1
 
-    if do_training: # and len(agent.replay_buffer._data.states) >= agent.batch_size * 2:
+    if do_training:
         return stats, loss, q_values
 
     return stats
@@ -60,21 +53,18 @@ def train_online(env, agent, num_episodes, model_dir="./models_cartpole", tensor
 
     tensorboard = Evaluation(os.path.join(tensorboard_dir, "train"), [
         "episode_reward", "a_0", "a_1", "loss", "mean_q"])
-        # "episode_reward_det", "a_0_det", "a_1_det"])
+
 
     # training
     for i in range(num_episodes):
         print("episode: ", i)
         stats = run_episode(env, agent, deterministic=False, do_training=True, rendering=False)
 
-        # check if learning has actually started or if replay_buffer has just been
-        # filled up
-        if not isinstance(stats, tuple):
-            print('Replay buffer filling up..')
-            continue
         stats, loss, q_values = stats[0], stats[1], stats[2]
         # compute mean of q_values
         mean_q = np.mean(q_values)
+
+        # added some variables for tracking (loss, mean_q)
         tensorboard.write_episode_data(i, eval_dict={
             "episode_reward" : stats.episode_reward,
             "a_0" : stats.get_action_usage(0),
@@ -82,26 +72,16 @@ def train_online(env, agent, num_episodes, model_dir="./models_cartpole", tensor
             "loss": loss,
             "mean_q": mean_q})
 
+        # terminate training if loss is too high
         if loss > 1000:
             print('Loss diverging: ', loss)
             break
-        # print('episode_reward', stats.episode_reward)
-        # TODO: evaluate your agent once in a while for some episodes using run_episode(env, agent, deterministic=True, do_training=False) to
-        # check its performance with greedy actions only. You can also use tensorboard to plot the mean episode reward.
+
+        # test the deterministic policy every 50th episode
         if i % 50 == 0:
             stats_det = run_episode(env, agent, deterministic=True, do_training=False)
             print('Episode reward deterministic:', stats_det.episode_reward)
             print('Action 0 selected:', stats_det.get_action_usage(0))
-            # tensorboard.write_episode_data(i, eval_dict= {
-            #     "episode_reward_det": stats_det.episode_reward,
-            #     "a_0_det": stats_det.get_action_usage(0),
-            #     "a_1_det": stats_det.get_action_usage(1)})
-
-        # if i % 2000 == 0:
-        #     print('Adapting esilon')
-        #     if agent.epsilon > 0.11:
-        #         agent.epsilon -= 0.1
-        #         print("New epsilon:", agent.epsilon)
 
         # store model every 100 episodes and in the end.
         if i % 100 == 0 or i >= (num_episodes - 1):
@@ -145,12 +125,10 @@ if __name__ == "__main__":
     # Hint: CartPole is considered solved when the average reward is greater
     # than or equal to 195.0 over 100 consecutive trials.
 
-    # learning_rates = [1e-5, 1e-4]
-    # batch_sizes = [64, 128]
-    # discount_factors = [0.9, 0.85, 0.8]
-    # taus = [0.01, 0.05]
-    # params_product = it.product(learning_rates, batch_sizes, discount_factors, taus)
+    # set some parameters that could be interesting for training here and then
+    # call a function that creates the networks and the agent and trains them
 
+    # set parameters
     NUM_EPISODES = 170
     EPSILON = 0.05            # default 0.05
     LEARNING_RATE = 0.003   # default 1e-4
@@ -159,6 +137,7 @@ if __name__ == "__main__":
     TAU = 0.01                 # default 0.01
     NUM_UNITS = 16           # default 20
 
+    # create networks and agent and train it
     final_rewards = create_and_train_agent(LEARNING_RATE, EPSILON, DISCOUNT_FACTOR, BATCHSIZE,
                            TAU, NUM_EPISODES, hidden=NUM_UNITS)
 

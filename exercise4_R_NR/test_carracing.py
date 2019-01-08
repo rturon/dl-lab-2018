@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
     # history_length =  0
 
-    #TODO: Define networks and load agent
+    # need parameters from train_carracing that define the networks
     # set parameters
     num_kernels = [32, 64, 64]
     kernel_size = [8, 4, 3]

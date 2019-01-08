@@ -46,9 +46,7 @@ def run_episode(env, agent, deterministic, skip_frames=0,  do_training=True,
 
     while True:
 
-        # TODO: get action_id from agent
         # Hint: adapt the probabilities of the 5 actions for random sampling so that the agent explores properly.
-        # action_id = agent.act(...)
         action_id = agent.act(state, deterministic=deterministic)
         # action = your_id_to_action_method(...)
         action = action_id_to_action(action_id)
@@ -92,15 +90,16 @@ def run_episode(env, agent, deterministic, skip_frames=0,  do_training=True,
 def train_online(env, agent, num_episodes, history_length=0,
                  model_dir="./models_carracing", tensorboard_dir="./tensorboard"):
 
-    print("AGENT TYPE: ",type(agent))
     if not os.path.exists(model_dir):
         os.mkdir(model_dir)
 
     print("... train agent")
+    # added some variables for tracking (loss, mean_q)
     tensorboard = Evaluation(os.path.join(tensorboard_dir, "train"),
                              ["episode_reward", "straight", "left", "right",
                              "accel", "brake", "loss", "mean_q"])
 
+    # create a list to save all the deterministic rewards during training
     rewards_det = []
 
     for i in range(num_episodes):
@@ -108,7 +107,8 @@ def train_online(env, agent, num_episodes, history_length=0,
 
         # Hint: you can keep the episodes short in the beginning by changing
         # max_timesteps (otherwise the car will spend most of the time out of the track)
-        # small number of max_timesteps at the beginning
+
+        # decrease epsilon gradually during training
         epsilons = [0.5, 0.4, 0.3, 0.2, 0.1, 0.05]
 
         if i < 20:
@@ -126,6 +126,7 @@ def train_online(env, agent, num_episodes, history_length=0,
         elif i < 100:
             max_timesteps = 500
             agent.epsilon = epsilons[4]
+        # last decrease of epsilon after 100 episodes
         else:
             max_timesteps = 1000
             agent.epsilon = epsilons[5]
@@ -145,22 +146,20 @@ def train_online(env, agent, num_episodes, history_length=0,
                                                       "mean_q": mean_q
                                                       })
 
-        # TODO: evaluate agent with deterministic actions from time to time
+        # evaluate agent with deterministic policy every 10th episode
         if i % 10 == 0:
-            stats_val_fr = run_episode(env, agent, max_timesteps=max_timesteps,
-                            skip_frames=3, deterministic=True,
-                            do_training=False, rendering=True)
-            print("Episode reward deterministic with frames skipped:", stats_val_fr.episode_reward)
             stats_val = run_episode(env, agent, max_timesteps=max_timesteps,
                                                             skip_frames=0, deterministic=True,
                                                             do_training=False, rendering=True)
             print("Episode reward deterministic:", stats_val.episode_reward)
             rewards_det.append(stats_val.episode_reward)
 
+        # save agent every 20th episode
         if i % 20 == 0 or (i >= num_episodes - 1):
             agent.saver.save(agent.sess, os.path.join(model_dir, "dqn_agent.ckpt"))
 
     tensorboard.close_session()
+    # print all deterministic rewards again at the end of training
     print("Deterministic rewards:", rewards_det)
 
 def state_preprocessing(state):
@@ -174,9 +173,8 @@ def create_and_train_agent(num_kernels, kernel_size, lr, history_length,
 
     state_dim = env.observation_space.shape
     state_dim = (state_dim[0], state_dim[1], history_length+1)
-    # print(state_dim)
+    # only use straight, left, right, accelerate and brake
     num_actions = 5
-    # print("Number of actions:", num_actions)
 
     # create Q network
     Q = CNN(state_dim, num_actions, num_kernels, kernel_size, lr, stride)
@@ -186,6 +184,7 @@ def create_and_train_agent(num_kernels, kernel_size, lr, history_length,
     print("Creating agent now ..")
     # create dqn_agent
     dqn_agent = DQNAgent(Q, Q_target, num_actions, discount_factor, batch_size, epsilon)
+    # reload already trained agent for further training
     # dqn_agent.load('./models_carracing/dqn_agent.ckpt')
 
     start_time = time.time()
@@ -195,8 +194,9 @@ def create_and_train_agent(num_kernels, kernel_size, lr, history_length,
 
 if __name__ == "__main__":
 
-    # env = gym.make('CarRacing-v0').unwrapped
-
+    # define most parameters here to make changes for testing purposes easier
+    # then make one function call that creates the networks and agents and
+    # performs the training
     # set parameters
     num_kernels = [32, 64, 64]
     kernel_size = [8, 4, 3]
@@ -209,8 +209,6 @@ if __name__ == "__main__":
     tau = 0.01
     stride = [4, 2, 1]
 
-    # TODO: Define Q network, target network and DQN dqn_agent
+    # call the function to create and train networks and agent
     create_and_train_agent(num_kernels, kernel_size, lr, history_length, bs,
                            num_episodes, epsilon, df, tau, stride)
-
-    # train_online(env, agent, num_episodes=1000, history_length=0, model_dir="./models_carracing")

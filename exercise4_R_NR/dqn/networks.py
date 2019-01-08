@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
-# TODO: add your Convolutional Neural Network for the CarRacing environment.
+
 class CNN():
     """
     Convolutional Neural Network class for the carracing RL agent
@@ -22,7 +22,8 @@ class CNN():
         self.actions_ = tf.placeholder(tf.int32, shape=[None])                  # Integer id of which action was selected
         self.targets_ = tf.placeholder(tf.float32,  shape=[None])               # The TD target value
 
-        # network
+        # two possibilities to create a network:
+        # either create a network with two conv layers, same number of kernels and same kernel_size
         if isinstance(num_kernels, int) or isinstance(kernel_size, int) or isinstance(stride, int):
             conv1 = tf.layers.conv2d(self.states_,filters=num_kernels, kernel_size=kernel_size,
                                      strides=1, activation=tf.nn.relu)
@@ -30,6 +31,8 @@ class CNN():
                                      strides=1, activation=tf.nn.relu)
             flat = tf.layers.flatten(conv2)
 
+        # or create a network with three conv layers and individual kernel sizes, number of kernels
+        # and individual stride size
         else:
             conv1 = tf.layers.conv2d(self.states_, filters=num_kernels[0],
                                      kernel_size=kernel_size[0], strides=stride[0],
@@ -42,6 +45,7 @@ class CNN():
                                       activation=tf.nn.relu)
             flat = tf.layers.flatten(conv3)
 
+        # one fully connected layer after the conv layers
         fc1 = tf.layers.dense(flat, 100, tf.nn.relu)
         self.predictions = tf.layers.dense(fc1, num_actions)
 
@@ -98,7 +102,7 @@ class CNNTargetNetwork(CNN):
     def __init__(self, state_dim, num_actions, num_kernels, kernel_size, lr=1e-4, tau=0.01, stride=1):
         super(CNNTargetNetwork, self).__init__(state_dim, num_actions, num_kernels,
                                             kernel_size, lr, stride)
-        # NeuralNetwork.__init__(self, state_dim, num_actions, hidden, lr)
+
         self.tau = tau
         self._associate = self._register_associate()
 
